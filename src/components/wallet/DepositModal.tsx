@@ -415,6 +415,7 @@ export default function DepositModal({ isOpen, onClose, onSuccess }: DepositModa
                         <span>Tự động cộng tiền khi nhận</span>
                       </div>
                     </div>
+                  </div>
                 )}
               </div>
             )}
