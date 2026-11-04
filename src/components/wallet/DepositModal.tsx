@@ -399,24 +399,22 @@ export default function DepositModal({ isOpen, onClose, onSuccess }: DepositModa
                       <span>Hệ thống đang tự động lắng nghe giao dịch chuyển khoản...</span>
                     </div>
 
-                    {/* Nút Sandbox Xác Nhận Nạp kèm Animation */}
+                    {/* Trạng thái lắng nghe giao dịch tự động */}
                     <div className="pt-1 flex items-center justify-between">
                       <button
                         onClick={() => setStep("INPUT")}
-                        className="text-xs text-slate-600 hover:underline cursor-pointer"
+                        className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
                       >
                         ← Đổi số tiền khác
                       </button>
-                      <button
-                        onClick={handleSandboxSimulate}
-                        disabled={confirmingSandbox}
-                        className="relative overflow-hidden group px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5"
-                      >
-                        <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
-                        <span>{confirmingSandbox ? "Đang xử lý..." : "⚡ Xác Nhận Nạp (Xem Animation)"}</span>
-                      </button>
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <span>Tự động cộng tiền khi nhận</span>
+                      </div>
                     </div>
-                  </div>
                 )}
               </div>
             )}

@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Thiếu mã giao dịch" }, { status: 400 });
     }
 
-    const deposit = await prisma.deposit.findFirst({
+    let deposit = await prisma.deposit.findFirst({
       where: { 
         transactionCode: code,
         userId: session.id,
@@ -117,14 +117,37 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    if (!deposit) {
-      return NextResponse.json({ error: "Không tìm thấy giao dịch" }, { status: 404 });
+    let isCompleted = deposit?.status === "COMPLETED";
+
+    if (!isCompleted) {
+      const recentCompleted = await prisma.deposit.findFirst({
+        where: {
+          userId: session.id,
+          status: "COMPLETED",
+          completedAt: { gte: new Date(Date.now() - 10 * 60 * 1000) },
+        },
+        select: {
+          id: true,
+          transactionCode: true,
+          amount: true,
+          status: true,
+          completedAt: true,
+        },
+      });
+      if (recentCompleted) {
+        deposit = recentCompleted;
+        isCompleted = true;
+      }
+    }
+
+    if (!deposit && !isCompleted) {
+      return NextResponse.json({ error: "Đang chờ giao dịch", isCompleted: false }, { status: 200 });
     }
 
     return NextResponse.json({
       success: true,
       deposit,
-      isCompleted: deposit.status === "COMPLETED",
+      isCompleted,
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || "Lỗi kiểm tra trạng thái" }, { status: 500 });

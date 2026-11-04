@@ -73,13 +73,9 @@ export async function POST(req: NextRequest) {
     const transferContent = (payload.content || payload.description || payload.transferContent || "").toString();
     const amount = Number(payload.transferAmount || payload.amount || 0);
 
-    // Tìm mã giao dịch RBXDEP... trong nội dung chuyển khoản
-    const match = transferContent.match(/RBXDEP[0-9A-Za-z]+/i);
-    const transactionCode = payload.transactionCode || (match ? match[0].toUpperCase() : null);
-
-    // Xử lý gói tin GỬI THỬ NGHIỆM từ SePay (Test Ping Webhook)
-    if (!transactionCode || amount <= 0) {
-      console.log(`[SePay Webhook] Nhận được gói tin test hoặc không có mã RBXDEP: "${transferContent}"`);
+    // Xử lý gói tin PING kiểm tra thử nghiệm (nếu số tiền <= 0 hoặc nội dung chỉ là test ping)
+    if (amount <= 0 || transferContent.toLowerCase().includes("test ping") || transferContent.toLowerCase().includes("kiem tra webhook")) {
+      console.log(`[SePay Webhook] Gói tin ping kiểm tra kết nối: "${transferContent}"`);
       return NextResponse.json({
         success: true,
         message: "SePay Webhook Test Ping Thành Công! Endpoint hoạt động hoàn hảo.",
@@ -87,11 +83,17 @@ export async function POST(req: NextRequest) {
       }, { status: 200 });
     }
 
+    // Tìm mã giao dịch RBXDEP... trong nội dung chuyển khoản
+    const match = transferContent.match(/RBXDEP[0-9A-Za-z]+/i);
+    const transactionCode = payload.transactionCode || (match ? match[0].toUpperCase() : `DEP_SEPAY_${payload.id || payload.referenceCode || Date.now()}`);
+
+    console.log(`[SePay Webhook] Bắt đầu xử lý nạp tiền tự động: Số tiền=${amount}, Mã GD=${transactionCode}, ND="${transferContent}"`);
+
     // 04. Cộng tiền vào ví user và cộng thêm +20% khuyến mại tự động
     const result = await processDepositCompletion({
       transactionCode,
       amount,
-      notes: `SePay tự động: ${payload.gateway || "Ngân hàng"} - GD: ${payload.referenceCode || payload.id || "Live"}`,
+      notes: `SePay tự động: ${payload.gateway || "MBBank"} - Mã GD: ${payload.referenceCode || payload.id || "Live"} - ND: ${transferContent}`,
     });
 
     return NextResponse.json({
