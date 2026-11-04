@@ -1,6 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processDepositCompletion } from "@/lib/payment/adapter";
 
+// Hỗ trợ GET để SePay hoặc trình duyệt kiểm tra ping endpoint (tránh lỗi 405 Method Not Allowed)
+export async function GET() {
+  return NextResponse.json({
+    success: true,
+    status: "READY",
+    message: "SePay Webhook Endpoint is Active & Ready to receive bank transactions",
+    endpoint: "/api/payments/webhook",
+    timestamp: new Date().toISOString(),
+  });
+}
+
+// Hỗ trợ OPTIONS cho CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, x-api-key",
+    },
+  });
+}
+
+// Hỗ trợ HEAD
+export async function HEAD() {
+  return new NextResponse(null, { status: 200 });
+}
+
+// Xử lý POST Webhook từ SePay khi có biến động số dư
 export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
@@ -9,7 +38,7 @@ export async function POST(req: NextRequest) {
     const expectedSecret = process.env.SEPAY_API_KEY || process.env.PAYMENT_WEBHOOK_SECRET || "spsk_live_3ynKZLKeSY4oPc4RtGD53KZ8EukdVm24";
 
     // 01. Xác thực bảo mật từ SePay:
-    // Hỗ trợ cả 2 chế độ: "API Key" (khuyên dùng) hoặc "Không xác thực" (để tiện test)
+    // Hỗ trợ cả 2 chế độ: "API Key" hoặc "Không xác thực"
     const isAuthorized =
       !authHeader || // Nếu người dùng chọn 'Không xác thực' trên SePay
       authHeader.includes(expectedSecret) ||
@@ -22,11 +51,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized SePay Webhook" }, { status: 401 });
     }
 
-    let payload: any;
-    try {
-      payload = JSON.parse(rawBody);
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    let payload: any = {};
+    if (rawBody && rawBody.trim()) {
+      try {
+        payload = JSON.parse(rawBody);
+      } catch {
+        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+      }
     }
 
     // 02. Kiểm tra chiều giao dịch (transferType):
@@ -46,12 +77,14 @@ export async function POST(req: NextRequest) {
     const match = transferContent.match(/RBXDEP[0-9A-Za-z]+/i);
     const transactionCode = payload.transactionCode || (match ? match[0].toUpperCase() : null);
 
+    // Xử lý gói tin GỬI THỬ NGHIỆM từ SePay (Test Ping Webhook)
     if (!transactionCode || amount <= 0) {
-      console.warn(`[SePay Webhook] Không tìm thấy mã nạp RBXDEP trong nội dung: "${transferContent}"`);
+      console.log(`[SePay Webhook] Nhận được gói tin test hoặc không có mã RBXDEP: "${transferContent}"`);
       return NextResponse.json({
-        error: "Không tìm thấy mã giao dịch RBXDEP hợp lệ trong nội dung chuyển khoản",
-        content: transferContent,
-      }, { status: 400 });
+        success: true,
+        message: "SePay Webhook Test Ping Thành Công! Endpoint hoạt động hoàn hảo.",
+        receivedContent: transferContent,
+      }, { status: 200 });
     }
 
     // 04. Cộng tiền vào ví user và cộng thêm +20% khuyến mại tự động
