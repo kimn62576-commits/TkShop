@@ -1,0 +1,27 @@
+--[[
+========================================================================
+  ROBLOX STUDIO ASSET MARKETPLACE - OFFICIAL VERIFIED ASSET
+========================================================================
+  Asset: Free Starter Pack: Low Poly Medieval Town Assets
+  File: Free_Medieval_Town_Pack.rbxm
+  Format: .rbxm
+  Downloaded via Roblox Studio Asset Marketplace Secured Delivery
+  Timestamp: 2026-10-30T13:48:13.584Z
+
+  [INSTALLATION INSTRUCTIONS]
+  1. Open Roblox Studio.
+  2. Right-click 'ServerScriptService' or 'ReplicatedStorage' in Explorer.
+  3. Select 'Insert from File...' and choose this asset.
+  4. Ensure HTTP Requests and API Services are enabled if required.
+========================================================================
+]]
+
+local AssetModule = {}
+AssetModule.Version = "2026.1"
+AssetModule.AssetName = "Free Starter Pack: Low Poly Medieval Town Assets"
+
+function AssetModule.Initialize()
+    print("[RobloxMarketplace] Loaded verified asset: " .. AssetModule.AssetName)
+end
+
+return AssetModule

@@ -1,0 +1,519 @@
+// Prisma Schema for Roblox Studio Asset Marketplace
+// Fully relational, supporting SQLite (zero-config local) and PostgreSQL (production)
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x", "debian-openssl-1.1.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  passwordHash    String?
+  role            String           @default("USER") // GUEST, USER, ADMIN, SUPER_ADMIN
+  isBanned        Boolean          @default(false)
+  banReason       String?
+  emailVerified   DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  accounts        Account[]
+  profile         UserProfile?
+  wallet          Wallet?
+  orders          Order[]
+  deposits        Deposit[]
+  reviews         Review[]
+  wishlists       Wishlist[]
+  supportTickets  SupportTicket[]
+  supportMessages SupportMessage[]
+  adminLogs       AdminLog[]
+  notifications   Notification[]
+  downloadLogs    DownloadLog[]
+  cardDeposits    CardDeposit[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String   // google, discord, facebook, github, microsoft
+  providerAccountId String
+  refreshToken      String?
+  accessToken       String?
+  expiresAt         Int?
+  tokenType         String?
+  scope             String?
+  idToken           String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model UserProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  displayName    String
+  robloxUsername String?
+  avatarUrl      String?
+  bio            String?
+  discordTag     String?
+  website        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // GUEST, USER, ADMIN, SUPER_ADMIN
+  description String?
+  permissions String   // JSON stringified list of permissions
+  createdAt   DateTime @default(now())
+
+  @@map("roles")
+}
+
+model ProductCategory {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  imageUrl    String?
+  icon        String?   // Lucide icon name (e.g. "Box", "Code", "Layers", "Map")
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  products    Product[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id                 String           @id @default(cuid())
+  title              String
+  slug               String           @unique
+  subtitle           String?
+  description        String           // Full Markdown documentation
+  features           String           // JSON string array of features
+  installationGuide  String?          // Markdown installation guide
+  price              Float            @default(0)
+  originalPrice      Float?           // For strikethrough discount
+  discountPercent    Int              @default(0)
+  isFree             Boolean          @default(false)
+  isFeatured         Boolean          @default(false)
+  isTrending         Boolean          @default(false)
+  isBestSeller       Boolean          @default(false)
+  status             String           @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
+  stock              Int?             // null for unlimited digital
+  salesCount         Int              @default(0)
+  viewCount          Int              @default(0)
+  ratingAverage      Float            @default(5.0)
+  ratingCount        Int              @default(0)
+  robloxVersion      String?          @default("Studio v0.640+")
+  fileFormat         String           @default(".rbxm") // .rbxm, .rbxmx, .rbxl, .lua, .luau, .zip
+  creatorName        String           @default("Roblox Assets Studio")
+  creatorAvatar      String?
+  categoryId         String
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  category           ProductCategory  @relation(fields: [categoryId], references: [id])
+  images             ProductImage[]
+  files              ProductFile[]
+  versions           ProductVersion[]
+  tags               ProductTag[]
+  orderItems         OrderItem[]
+  reviews            Review[]
+  wishlists          Wishlist[]
+  downloadLogs       DownloadLog[]
+
+  @@map("products")
+}
+
+model ProductImage {
+  id          String   @id @default(cuid())
+  productId   String
+  imageUrl    String
+  isThumbnail Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+model ProductFile {
+  id          String   @id @default(cuid())
+  productId   String
+  fileName    String
+  fileSize    String   // e.g. "14.8 MB"
+  fileFormat  String   // .rbxm, .rbxmx, .rbxl, .luau, .zip
+  storagePath String   // Protected internal storage path
+  fileHash    String?  // SHA-256 for integrity check
+  version     String   @default("1.0.0")
+  isLatest    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_files")
+}
+
+model ProductVersion {
+  id            String   @id @default(cuid())
+  productId     String
+  versionNumber String   // e.g. "v1.2.0"
+  changelog     String   // Release notes
+  releaseDate   DateTime @default(now())
+
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_versions")
+}
+
+model Tag {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  slug        String       @unique
+  createdAt   DateTime     @default(now())
+
+  productTags ProductTag[]
+
+  @@map("tags")
+}
+
+model ProductTag {
+  id        String   @id @default(cuid())
+  productId String
+  tagId     String
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, tagId])
+  @@map("product_tags")
+}
+
+model Wallet {
+  id             String              @id @default(cuid())
+  userId         String              @unique
+  balance        Float               @default(0)
+  totalDeposited Float               @default(0)
+  totalSpent     Float               @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id            String   @id @default(cuid())
+  walletId      String
+  type          String   // DEPOSIT, PURCHASE, REFUND, ADMIN_ADJUSTMENT
+  amount        Float    // Positive for credit (+), negative for debit (-)
+  balanceBefore Float
+  balanceAfter  Float
+  referenceId   String?  // deposit transactionCode or orderNumber
+  description   String
+  status        String   @default("COMPLETED") // COMPLETED, PENDING, FAILED
+  createdAt     DateTime @default(now())
+
+  wallet        Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@map("wallet_transactions")
+}
+
+model Deposit {
+  id                  String    @id @default(cuid())
+  userId              String
+  transactionCode     String    @unique // e.g. "RBXDEP_173000_A9B2"
+  amount              Float
+  provider            String    @default("VIETQR")
+  qrUrl               String?
+  status              String    @default("PENDING") // PENDING, COMPLETED, FAILED, EXPIRED
+  bankName            String?
+  bankAccountNumber   String?
+  transferContent     String?
+  completedAt         DateTime?
+  expiresAt           DateTime
+  adminNotes          String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("deposits")
+}
+
+model PaymentProvider {
+  id                String   @id @default(cuid())
+  code              String   @unique // VIETQR, SEPAY, CASSO, SANDBOX
+  name              String
+  isActive          Boolean  @default(true)
+  isSandbox         Boolean  @default(true)
+  bankName          String?  @default("MBBank")
+  bankAccount       String?  @default("999988886666")
+  bankAccountName   String?  @default("ROBLOX ASSET MARKETPLACE")
+  webhookSecret     String?  @default("whsec_rbxmarket_super_secure_secret_2026")
+  config            String?  // JSON configuration string
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("payment_providers")
+}
+
+model Order {
+  id             String       @id @default(cuid())
+  orderNumber    String       @unique // e.g. "ORD-202610-8912"
+  userId         String
+  subtotal       Float
+  discountAmount Float        @default(0)
+  totalAmount    Float
+  status         String       @default("COMPLETED") // COMPLETED, REFUNDED, CANCELLED
+  paymentMethod  String       @default("WALLET")
+  couponCode     String?
+  adminNotes     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items          OrderItem[]
+  couponUsage    CouponUsage?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  productId   String
+  price       Float
+  licenseType String   @default("STANDARD") // STANDARD, COMMERCIAL
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@map("order_items")
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  productId  String
+  userId     String
+  rating     Int      // 1-5
+  comment    String
+  isApproved Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@map("reviews")
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlists")
+}
+
+model Coupon {
+  id             String        @id @default(cuid())
+  code           String        @unique
+  discountType   String        // PERCENTAGE, FIXED
+  discountValue  Float
+  minOrderValue  Float         @default(0)
+  maxUses        Int           @default(100)
+  usedCount      Int           @default(0)
+  isActive       Boolean       @default(true)
+  startDate      DateTime      @default(now())
+  expiresAt      DateTime
+  createdAt      DateTime      @default(now())
+
+  usages         CouponUsage[]
+
+  @@map("coupons")
+}
+
+model CouponUsage {
+  id              String   @id @default(cuid())
+  couponId        String
+  orderId         String   @unique
+  userId          String
+  discountApplied Float
+  createdAt       DateTime @default(now())
+
+  coupon          Coupon   @relation(fields: [couponId], references: [id], onDelete: Restrict)
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("coupon_usages")
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  title     String
+  subtitle  String?
+  link      String?
+  imageUrl  String
+  badgeText String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("banners")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?  // null indicates broadcast to all users
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, SUCCESS, WARNING, ORDER, WALLET
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model SupportTicket {
+  id           String           @id @default(cuid())
+  ticketNumber String           @unique // e.g. "TCK-8921"
+  userId       String
+  subject      String
+  category     String           // BILLING, TECHNICAL, ASSET_ISSUE, GENERAL
+  priority     String           @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  status       String           @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages     SupportMessage[]
+
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id          String        @id @default(cuid())
+  ticketId    String
+  senderId    String
+  senderName  String
+  senderRole  String        // USER, ADMIN
+  message     String
+  attachments String?       // JSON array of strings
+  createdAt   DateTime      @default(now())
+
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender      User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("support_messages")
+}
+
+model AdminLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String   // CREATE_PRODUCT, EDIT_PRODUCT, BAN_USER, MANUAL_DEPOSIT, etc.
+  targetType String   // USER, PRODUCT, ORDER, WALLET, SETTING
+  targetId   String?
+  details    String   // JSON payload of changes
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  admin      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@map("admin_logs")
+}
+
+model WebsiteSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("website_settings")
+}
+
+model DownloadLog {
+  id           String   @id @default(cuid())
+  userId       String
+  productId    String
+  fileName     String
+  ipAddress    String?
+  userAgent    String?
+  downloadedAt DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("download_logs")
+}
+
+model CardDeposit {
+  id              String    @id @default(cuid())
+  userId          String
+  requestId       String    @unique // e.g. "TKCARD_173000_A1B2"
+  telco           String    // VIETTEL, VINAPHONE, MOBIFONE, VIETNAMOBILE, ZING, GATE, GARENA
+  declaredAmount  Int       // Mệnh giá khai báo (10000, 20000, 50000, 100000, 200000, 500000...)
+  realAmount      Int?      // Mệnh giá thực từ nhà mạng
+  receivedAmount  Float     // Tiền thực nhận vào ví
+  discountFee     Float     @default(0) // % chiết khấu (VD: 15%)
+  pin             String    // Mã PIN cào
+  serial          String    // Số Serial
+  status          String    @default("PENDING") // PENDING (xuly), SUCCESS (hoantat), FAILED (thatbai)
+  note            String?   // Thông báo kết quả từ gateway
+  gateway         String    @default("THESIEURE") // THESIEURE, TRUMTHE, CARDVIP, SANDBOX
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("card_deposits")
+}
+
+model CardDiscount {
+  id         String   @id @default(cuid())
+  telco      String   // VIETTEL, VINAPHONE, MOBIFONE, VIETNAMOBILE, ZING, GATE, GARENA
+  amount     Int      // 10000, 20000, 50000, 100000, 200000, 500000
+  discount   Float    @default(15) // % chiết khấu (0 = bảo trì)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([telco, amount])
+  @@map("card_discounts")
+}

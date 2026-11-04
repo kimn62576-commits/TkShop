@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  tkshop-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tkshop_marketplace
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:./dev.db
+      - NEXT_PUBLIC_SITE_URL=http://localhost:3000
+      - JWT_SECRET=tkshop_jwt_secret_key_super_robust_2026_xyz_a729e1f8
+      - DOWNLOAD_TOKEN_SECRET=tkshop_download_token_secret_key_2026_abc_92ef
+    volumes:
+      - ./prisma/dev.db:/app/prisma/dev.db
