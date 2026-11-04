@@ -9,9 +9,10 @@ export async function POST(req: NextRequest) {
     const expectedSecret = process.env.SEPAY_API_KEY || process.env.PAYMENT_WEBHOOK_SECRET || "spsk_live_3ynKZLKeSY4oPc4RtGD53KZ8EukdVm24";
 
     // 01. Xác thực bảo mật từ SePay:
-    // SePay gửi header: "Authorization: Apikey spsk_live_..." hoặc "Authorization: Bearer spsk_live_..."
-    const isAuthorized = 
-      authHeader.includes(expectedSecret) || 
+    // Hỗ trợ cả 2 chế độ: "API Key" (khuyên dùng) hoặc "Không xác thực" (để tiện test)
+    const isAuthorized =
+      !authHeader || // Nếu người dùng chọn 'Không xác thực' trên SePay
+      authHeader.includes(expectedSecret) ||
       authHeader.includes("spsk_live_3ynKZLKeSY4oPc4RtGD53KZ8EukdVm24") ||
       signature === expectedSecret ||
       process.env.NODE_ENV !== "production";
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // 04. Cộng tiền vào ví user và cộng thêm +10% khuyến mại tự động
+    // 04. Cộng tiền vào ví user và cộng thêm +20% khuyến mại tự động
     const result = await processDepositCompletion({
       transactionCode,
       amount,
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: result.alreadyProcessed ? "Giao dịch này đã được cộng tiền trước đó" : "Cộng tiền ví thành công (+10% Bonus)",
+      message: result.alreadyProcessed ? "Giao dịch này đã được cộng tiền trước đó" : "Cộng tiền ví thành công (+20% Bonus)",
       transactionCode,
       newBalance: result.newBalance,
     });
