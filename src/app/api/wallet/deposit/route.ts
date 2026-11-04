@@ -91,11 +91,6 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getSessionFromRequest(req);
-    if (!session) {
-      return NextResponse.json({ error: "Vui lòng đăng nhập" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
 
@@ -103,10 +98,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Thiếu mã giao dịch" }, { status: 400 });
     }
 
+    // Tra cứu trực tiếp theo transactionCode bí mật duy nhất của đơn nạp
     let deposit = await prisma.deposit.findFirst({
       where: { 
         transactionCode: code,
-        userId: session.id,
       },
       select: {
         id: true,
@@ -114,39 +109,41 @@ export async function GET(req: NextRequest) {
         amount: true,
         status: true,
         completedAt: true,
+        userId: true,
       },
     });
 
     let isCompleted = deposit?.status === "COMPLETED";
 
+    // Fallback: nếu đơn này chưa completed, kiểm tra thêm xem user có đơn nào COMPLETED trong 10 phút qua không
     if (!isCompleted) {
-      const recentCompleted = await prisma.deposit.findFirst({
-        where: {
-          userId: session.id,
-          status: "COMPLETED",
-          completedAt: { gte: new Date(Date.now() - 10 * 60 * 1000) },
-        },
-        select: {
-          id: true,
-          transactionCode: true,
-          amount: true,
-          status: true,
-          completedAt: true,
-        },
-      });
-      if (recentCompleted) {
-        deposit = recentCompleted;
-        isCompleted = true;
+      const session = await getSessionFromRequest(req);
+      if (session) {
+        const recentCompleted = await prisma.deposit.findFirst({
+          where: {
+            userId: session.id,
+            status: "COMPLETED",
+            completedAt: { gte: new Date(Date.now() - 10 * 60 * 1000) },
+          },
+          select: {
+            id: true,
+            transactionCode: true,
+            amount: true,
+            status: true,
+            completedAt: true,
+            userId: true,
+          },
+        });
+        if (recentCompleted) {
+          deposit = recentCompleted;
+          isCompleted = true;
+        }
       }
-    }
-
-    if (!deposit && !isCompleted) {
-      return NextResponse.json({ error: "Đang chờ giao dịch", isCompleted: false }, { status: 200 });
     }
 
     return NextResponse.json({
       success: true,
-      deposit,
+      deposit: deposit || { status: isCompleted ? "COMPLETED" : "PENDING" },
       isCompleted,
     });
   } catch (error: any) {
