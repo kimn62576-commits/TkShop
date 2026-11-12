@@ -30,11 +30,11 @@ async function handleCallback(req: NextRequest) {
       }
     }
 
-    // Các biến phổ biến từ TheSieuRe, TrumThe, CardVIP, Doithecao
+    // Các biến phổ biến từ Doithecao.com và các cổng đối tác
     const statusRaw = params.status || params.trangthai || params.Status;
     const requestId = params.request_id || params.requestid || params.RequestId || params.content;
-    const declaredAmountRaw = params.amount || params.pricesvalue || params.menhgia;
-    const realAmountRaw = params.value || params.value_receive || params.real_amount || params.amount;
+    const declaredAmountRaw = params.declared_value || params.amount || params.pricesvalue || params.menhgia;
+    const realAmountRaw = params.value || params.card_value || params.value_receive || params.real_amount || params.declared_value || params.amount;
     const message = params.message || params.msg || params.ghichu || "";
     const callbackSign = params.callback_sign || params.sign || "";
 
@@ -48,7 +48,7 @@ async function handleCallback(req: NextRequest) {
       const code = params.code || params.card_code || "";
       const serial = params.serial || params.card_seri || "";
       const expectedSign = md5(partnerKey + code + serial);
-      if (callbackSign !== expectedSign && callbackSign !== md5(partnerKey + requestId)) {
+      if (callbackSign.toLowerCase() !== expectedSign.toLowerCase() && callbackSign.toLowerCase() !== md5(partnerKey + requestId).toLowerCase()) {
         console.warn(`[Card Webhook] Sai chữ ký callback_sign cho request ${requestId}`);
       }
     }

@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
         pin: cleanPin,
         serial: cleanSerial,
         status: "PENDING",
-        gateway: process.env.CARD_PARTNER_ID ? "THESIEURE" : "SANDBOX",
+        gateway: "DOITHECAO",
         note: "Đang chờ duyệt từ nhà mạng",
       },
     });

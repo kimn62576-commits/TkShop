@@ -37,7 +37,7 @@ export function maskSerial(serial: string): string {
 }
 
 /**
- * Gửi yêu cầu gạch thẻ tới cổng đối tác (TheSieuRe / TrumThe / GachThe1s v2)
+ * Gửi yêu cầu gạch thẻ tới cổng đối tác (Doithecao.com Charging v2)
  */
 export async function sendToTheSieuReGateway(params: {
   telco: string;
@@ -49,12 +49,12 @@ export async function sendToTheSieuReGateway(params: {
   partnerKey: string;
   endpoint?: string;
 }) {
-  const endpoint = params.endpoint || process.env.CARD_GATEWAY_URL || "https://thesieure.com/chargingws/v2";
+  const endpoint = params.endpoint || process.env.CARD_GATEWAY_URL || "https://doithecao.com/chargingws/v2";
   const sign = md5(params.partnerKey + params.pin + params.serial);
   
-  const queryParams = new URLSearchParams({
+  const payload = new URLSearchParams({
     sign,
-    telco: params.telco,
+    telco: params.telco.toUpperCase(),
     code: params.pin,
     serial: params.serial,
     amount: params.amount.toString(),
@@ -63,18 +63,37 @@ export async function sendToTheSieuReGateway(params: {
     command: "charging",
   });
 
-  const url = `${endpoint}?${queryParams.toString()}`;
-
   try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: { "User-Agent": "TKShop-CardGateway/1.0" },
+    // 01. Ưu tiên gửi POST application/x-www-form-urlencoded (chuẩn khuyến nghị của Doithecao)
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "TKShop-CardGateway/1.0",
+      },
+      body: payload.toString(),
     });
-    const data = await response.json();
-    return data;
+
+    const text = await response.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      console.warn("[Card Gateway] Response not JSON, raw:", text);
+      return { status: 100, message: text || "Cổng thẻ phản hồi không đúng định dạng" };
+    }
   } catch (error: any) {
-    console.error("Lỗi kết nối cổng gạch thẻ:", error);
-    return { status: 100, message: "Không thể kết nối tới cổng gạch thẻ đối tác" };
+    // 02. Fallback sang GET nếu POST gặp sự cố mạng
+    try {
+      const getUrl = `${endpoint}?${payload.toString()}`;
+      const response = await fetch(getUrl, {
+        method: "GET",
+        headers: { "User-Agent": "TKShop-CardGateway/1.0" },
+      });
+      return await response.json();
+    } catch (fallbackErr: any) {
+      console.error("Lỗi kết nối cổng gạch thẻ doithecao.com:", error);
+      return { status: 100, message: "Không thể kết nối tới cổng gạch thẻ doithecao.com" };
+    }
   }
 }
 
