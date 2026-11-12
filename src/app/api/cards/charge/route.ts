@@ -107,10 +107,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // 05. Kiểm tra xem có cấu hình Gateway thật (TheSieuRe / TrumThe / GachThe1s) không
-    const partnerId = process.env.CARD_PARTNER_ID;
-    const partnerKey = process.env.CARD_PARTNER_KEY;
-    const gatewayUrl = process.env.CARD_GATEWAY_URL;
+    // 05. Gửi sang cổng đối tác thật Doithecao.com
+    const partnerId = process.env.CARD_PARTNER_ID || "40212429656";
+    const partnerKey = process.env.CARD_PARTNER_KEY || "dfb07949c20c293749ce5b0420582195";
+    const gatewayUrl = process.env.CARD_GATEWAY_URL || "https://doithecao.com/chargingws/v2";
 
     if (partnerId && partnerKey) {
       // Gửi sang cổng đối tác thật

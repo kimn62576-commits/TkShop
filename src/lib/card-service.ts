@@ -45,12 +45,14 @@ export async function sendToTheSieuReGateway(params: {
   serial: string;
   amount: number;
   requestId: string;
-  partnerId: string;
-  partnerKey: string;
+  partnerId?: string;
+  partnerKey?: string;
   endpoint?: string;
 }) {
+  const partnerId = params.partnerId || process.env.CARD_PARTNER_ID || "40212429656";
+  const partnerKey = params.partnerKey || process.env.CARD_PARTNER_KEY || "dfb07949c20c293749ce5b0420582195";
   const endpoint = params.endpoint || process.env.CARD_GATEWAY_URL || "https://doithecao.com/chargingws/v2";
-  const sign = md5(params.partnerKey + params.pin + params.serial);
+  const sign = md5(partnerKey + params.pin + params.serial);
   
   const payload = new URLSearchParams({
     sign,
@@ -59,7 +61,7 @@ export async function sendToTheSieuReGateway(params: {
     serial: params.serial,
     amount: params.amount.toString(),
     request_id: params.requestId,
-    partner_id: params.partnerId,
+    partner_id: partnerId,
     command: "charging",
   });
 

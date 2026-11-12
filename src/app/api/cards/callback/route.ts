@@ -42,7 +42,7 @@ async function handleCallback(req: NextRequest) {
       return NextResponse.json({ status: "error", message: "Thiếu request_id" }, { status: 400 });
     }
 
-    const partnerKey = process.env.CARD_PARTNER_KEY;
+    const partnerKey = process.env.CARD_PARTNER_KEY || "dfb07949c20c293749ce5b0420582195";
     // Kiểm tra chữ ký an toàn nếu partnerKey được cấu hình
     if (partnerKey && callbackSign) {
       const code = params.code || params.card_code || "";
